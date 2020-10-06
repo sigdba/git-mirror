@@ -31,6 +31,19 @@
   (s/conform ::gitolite-source-conf source-conf))
 
 ;;
+;; Overall Configuration
+;;
+
+(s/def ::path-regex string?)
+(s/def ::repo-filter (s/keys :req-un [::path-regex]))       ; Defined like this to allow future expansion
+(s/def ::whitelist (s/coll-of ::repo-filter))
+(s/def ::blacklist (s/coll-of ::repo-filter))
+(s/def ::local-cache-path string?)
+
+(s/def ::mirror-conf (s/keys :req-un [::source ::local-cache-path]
+                             :opt-un [::whitelist ::blacklist]))
+
+;;
 ;; Repository Remotes
 ;;
 

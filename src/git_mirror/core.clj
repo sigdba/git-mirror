@@ -1,5 +1,6 @@
 (ns git-mirror.core
-  (:use [git-mirror.util])
+  (:use [git-mirror.util]
+        [git-mirror.filter])
   (:require [git-mirror.spec :as ss]
             [git-mirror.gitolite :as gitolite]
             [clojure.java.io :as io]
@@ -66,17 +67,32 @@
         (do (log/infof "Cloning new repo: %s -> %s" url local-path)
             (git/git-clone url :dir local-path :mirror? true :monitor progress-monitor))))))
 
+#_(let [conf {:source           {:type             :static
+                               :private-key-path "/Users/dboitnot/.ssh/id_rsa_sig_ellucian_git"
+                               :urls             ["ssh://git@banner-src.ellucian.com/banner/plugins/banner_student_admissions"
+                                                  "ssh://git@banner-src.ellucian.com/banner/plugins/banner_common_api"
+                                                  "ssh://git@banner-src.ellucian.com/mobile/ms-notification-core"
+                                                  "ssh://git@banner-src.ellucian.com/powercampus/integrationservices-900"]}
+            :local-cache-path "tmp"
+            :whitelist        [{:path-regex "^/banner"}
+                               {:path-regex "^/mobile"}]
+            :blacklist [{:path-regex "^/banner/plugins/banner_common_api"}]}]
+  (let [{:keys [source whitelist blacklist]} (conform-or-throw ::ss/mirror-conf "Invalid mirror config" conf)]
+    (->> source get-remotes
+         (filter (whitelist-filter whitelist))
+         (remove (blacklist-filter blacklist)))))
+
 #_(let [static-conf {:type             :static
-                   :private-key-path "/Users/dboitnot/.ssh/id_rsa_sig_ellucian_git"
-                   :urls             ["ssh://git@banner-src.ellucian.com/banner/plugins/banner_codenarc"]}
-      gitolite-conf {:type             :gitolite
                      :private-key-path "/Users/dboitnot/.ssh/id_rsa_sig_ellucian_git"
-                     :remote-host      "banner-src.ellucian.com"}
-      conf gitolite-conf
-      base-path "tmp"]
-  (->> (get-remotes conf)
-       (map #(update-local-repo base-path %))
-       doall))
+                     :urls             ["ssh://git@banner-src.ellucian.com/banner/plugins/banner_codenarc"]}
+        gitolite-conf {:type             :gitolite
+                       :private-key-path "/Users/dboitnot/.ssh/id_rsa_sig_ellucian_git"
+                       :remote-host      "banner-src.ellucian.com"}
+        conf gitolite-conf
+        base-path "tmp"]
+    (->> (get-remotes conf)
+         #_(map #(update-local-repo base-path %))
+         #_doall))
 
 #_(git/git-clone "ssh://git@banner-src.ellucian.com/banner/plugins/banner_student_capp"
                  :dir "/Users/dboitnot/projects/git-mirror/tmp/banner/plugins/banner_student_capp.git"
