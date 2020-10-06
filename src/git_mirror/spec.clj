@@ -13,11 +13,10 @@
 ;;
 
 (s/def ::urls (s/* ::url))
-
 (defmulti source-type :type)
 
-(defmethod source-type :static [_]
-  (s/keys :req-un [::urls ::private-key-path]))
+(s/def ::static-source-conf (s/keys :req-un [::urls ::private-key-path]))
+(defmethod source-type :static [_] ::static-source-conf)
 
 (s/def ::remote-host string?)
 (s/def ::gitolite-source-conf (s/keys :req-un [::remote-host ::private-key-path]))

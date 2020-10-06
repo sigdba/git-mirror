@@ -1,6 +1,8 @@
 (ns git-mirror.util
   (:require [clojure.spec.alpha :as s]
-            [expound.alpha :as exp]))
+            [clojure.java.io :as io]
+            [expound.alpha :as exp])
+  (:import (java.io File)))
 
 (defn throw-with-spec [spec msg x]
   (throw (ex-info (str msg "\n" (exp/expound-str spec x)) {:spec spec :x x})))
@@ -17,3 +19,19 @@
   [spec msg x]
   (if (s/valid? spec x) x
                         (throw-with-spec spec msg x)))
+
+(defn join-path
+  "Returns a path string by joining it's arguments using the OS path separator"
+  [path & parts]
+  (->> ^File (apply io/file path parts)
+       .getPath))
+
+(defn dirname
+  "Returns the parent directory of the given path."
+  [path]
+  (-> path io/file .getParent str))
+
+(defn basename
+  "Returns the file name portion of the path."
+  [path]
+  (-> path io/file .getName))
