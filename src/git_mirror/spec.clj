@@ -44,7 +44,7 @@
                              :opt-un [::whitelist ::blacklist]))
 
 ;;
-;; Repository Remotes
+;; Repository Info
 ;;
 
 (s/def ::remote-spec (s/keys :req-un [::url ::private-key-path]))
