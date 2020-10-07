@@ -44,28 +44,32 @@
   (gitolite/get-repos conf))
 
 (defn update-local-repo
-  "Updates a repo on local disk from the given remote"
+  "Updates a repo on local disk from the given remote and returns the jgit repository object of the local repo"
   [base-path remote]
   (let [{:keys [private-key-path url]} remote
         {remote-host :host remote-path :path} (uri/uri url)
         local-path (str (join-path base-path remote-host) remote-path ".git")
         local-fp (io/file local-path)
         progress-monitor (logging-progress-monitor local-path)]
-    (git/with-identity {:name       (basename private-key-path)
-                        :key-dir    (dirname private-key-path)
-                        :trust-all? true}
-      (if (.exists local-fp)
-        (if-not (.isDirectory local-fp)
-          (throw (ex-info (str "Local path exists but it's not a directory: " local-path) {:remote remote}))
+    (try
+      (git/with-identity {:name       (basename private-key-path)
+                          :key-dir    (dirname private-key-path)
+                          :trust-all? true}
+        (if (.exists local-fp)
+          (if-not (.isDirectory local-fp)
+            (throw (ex-info (str "Local path exists but it's not a directory: " local-path) {:remote remote}))
 
-          ;; Local path already exists (and is a directory) so fetch into it rather than re-cloning.
-          (do (log/infof "Fetching updates: %s -> %s" url local-path)
-              (-> (git/load-repo local-path)
-                  (git/git-fetch :tag-opt :fetch-tags :monitor progress-monitor))))
+            ;; Local path already exists (and is a directory) so fetch into it rather than re-cloning.
+            (do (log/infof "Fetching updates: %s -> %s" url local-path)
+                (-> (git/load-repo local-path)
+                    (git/git-fetch :tag-opt :fetch-tags :monitor progress-monitor))))
 
-        ;; Local path doesn't exist so this is a new clone.
-        (do (log/infof "Cloning new repo: %s -> %s" url local-path)
-            (git/git-clone url :dir local-path :mirror? true :monitor progress-monitor))))))
+          ;; Local path doesn't exist so this is a new clone.
+          (do (log/infof "Cloning new repo: %s -> %s" url local-path)
+              (git/git-clone url :dir local-path :mirror? true :monitor progress-monitor))))
+      (catch Exception e
+        (log/errorf e "Error updating %s" remote)
+        nil))))
 
 #_(let [conf {:source           {:type             :static
                                :private-key-path "/Users/dboitnot/.ssh/id_rsa_sig_ellucian_git"
@@ -77,10 +81,13 @@
             :whitelist        [{:path-regex "^/banner"}
                                {:path-regex "^/mobile"}]
             :blacklist [{:path-regex "^/banner/plugins/banner_common_api"}]}]
-  (let [{:keys [source whitelist blacklist]} (conform-or-throw ::ss/mirror-conf "Invalid mirror config" conf)]
+  (let [{:keys [source whitelist blacklist local-cache-path]} (conform-or-throw ::ss/mirror-conf
+                                                                                "Invalid mirror config" conf)]
     (->> source get-remotes
          (filter (whitelist-filter whitelist))
-         (remove (blacklist-filter blacklist)))))
+         (remove (blacklist-filter blacklist))
+         (map #(update-local-repo local-cache-path %))
+         (filter identity))))
 
 #_(let [static-conf {:type             :static
                      :private-key-path "/Users/dboitnot/.ssh/id_rsa_sig_ellucian_git"
