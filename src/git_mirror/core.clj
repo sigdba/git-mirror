@@ -87,7 +87,8 @@
          (filter (whitelist-filter whitelist))
          (remove (blacklist-filter blacklist))
          (map #(update-local-repo local-cache-path %))
-         (filter identity))))
+         (filter identity)
+         doall)))
 
 #_(let [static-conf {:type             :static
                      :private-key-path "/Users/dboitnot/.ssh/id_rsa_sig_ellucian_git"
