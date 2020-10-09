@@ -14,5 +14,6 @@
                  ;; AWS API
                  [com.cognitect.aws/api "0.8.474"]
                  [com.cognitect.aws/endpoints "1.1.11.842"]
+                 [com.cognitect.aws/ssm "807.2.729.0"]
                  [com.cognitect.aws/codecommit "801.2.704.0"]]
   :repl-options {:init-ns git-mirror.core})

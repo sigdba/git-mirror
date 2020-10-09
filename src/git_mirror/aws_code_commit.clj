@@ -13,6 +13,14 @@
   [msg info-map response]
   (throw (ex-info msg (assoc info-map :response response))))
 
+(defn- aws-invoke-throw
+  "Invokes the given AWS request and returns the response or throws an exception if it failed."
+  [client op-map msg info-map]
+  (let [resp (aws/invoke client op-map)]
+    (if (:cognitect.anomalies/category resp)
+      (throw-aws-err msg info-map resp)
+      resp)))
+
 (defn path-munge
   "Returns a string which will work as a CodeCommit repo name for the given repo spec"
   [repo]
@@ -42,13 +50,14 @@
 (defn create-repository!
   "Creates an AWS CodeCommit repository and returns it's details."
   [client repo-name repo-desc tag-map]
-  (let [resp (aws/invoke client {:op      :CreateRepository
-                                 :request {:repositoryName        repo-name
-                                           :repositoryDescription repo-desc
-                                           :tags                  tag-map}})]
-    (if (:cognitect.anomalies/category resp)
-      (throw-aws-err "Error creating repository" {:repo-name repo-name :repo-desc repo-desc :tags tag-map} resp)
-      (:repositoryMetadata resp))))
+  (->> (aws-invoke-throw client
+                         {:op      :CreateRepository
+                          :request {:repositoryName        repo-name
+                                    :repositoryDescription repo-desc
+                                    :tags                  tag-map}}
+                         "Error creating repository"
+                         {:repo-name repo-name :repo-desc repo-desc :tags tag-map})
+       :repositoryMetadata))
 
 (defn- region-from-url
   "Returns the region from a CodeCommit URL"
@@ -100,22 +109,39 @@
          (sign secret-access-key short-date region)
          (str long-date))))
 
+(defn- creds-from-ssm
+  "Returns a credentials map by retrieving "
+    [client param-name]
+  (let [[uid pw & rest] (->> (aws-invoke-throw client {:op      :GetParameter
+                                                       :request {:Name           param-name
+                                                                 :WithDecryption true}}
+                                               "Error fetching credentials from SSM parameter"
+                                               {:param-name param-name})
+                             :Parameter :Value
+                             (str/split-lines)
+                             (map str/trim)
+                             (filter identity))]
+    (if-not (and uid pw (empty? rest))
+      (throw (ex-info "Credential param should have two lines, <username>\n<password>" {:param-name param-name})))
+    {:login uid :pw pw}))
+
 #_(let [repos git-mirror.gitolite/ALL-REPOS
         repo (->> repos first)]
     (str "Mirror of " (:url repo)))
 
-#_(let [cc (aws/client {:api :codecommit})]
+#_(let [cc (aws/client {:api :codecommit})
+      ssm (aws/client {:api :ssm})]
   (let [cc-repo (get-repository cc "delete-me")
-        cc-url (:cloneUrlHttp cc-repo)
-        local-repo-path "tmp/banner-src.ellucian.com/mobile/ms-notification-core.git"
-        local-repo (git/load-repo local-repo-path)
-        {access-key-id     :aws/access-key-id
-         secret-access-key :aws/secret-access-key} (aws-cred/fetch (aws-shared/credentials-provider))
-        pw (temp-password secret-access-key cc-url)]
-    (git/with-credentials {:login access-key-id :pw pw}
-      (git/git-push local-repo :remote cc-url :all? true :tags? true)))
+          cc-url (:cloneUrlHttp cc-repo)
+          local-repo-path "tmp/banner-src.ellucian.com/mobile/ms-notification-core.git"
+          local-repo (git/load-repo local-repo-path)
+          {access-key-id     :aws/access-key-id
+           secret-access-key :aws/secret-access-key} (aws-cred/fetch (aws-shared/credentials-provider))
+          pw (temp-password secret-access-key cc-url)]
+      (git/with-credentials (creds-from-ssm ssm "delete-me-git-mirror-creds")
+        (git/git-push local-repo :remote cc-url :all? true :tags? true)))
   #_(create-repository! cc "delete-me" "temporary for testing" {})
-  #_(aws/doc cc :CreateRepository)
-  #_(->> (aws/ops cc)
-         keys
-         sort))
+#_(aws/doc ssm :GetParameter)
+#_(->> (aws/ops ssm)
+       keys
+       sort) )
