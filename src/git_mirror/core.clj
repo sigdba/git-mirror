@@ -3,6 +3,7 @@
         [git-mirror.filter])
   (:require [git-mirror.spec :as ss]
             [git-mirror.gitolite :as gitolite]
+            [git-mirror.aws-code-commit :as cc]
             [clojure.java.io :as io]
             [taoensso.timbre :as log]
             [lambdaisland.uri :as uri]
@@ -43,6 +44,14 @@
 (defmethod get-remotes :gitolite [conf]
   (gitolite/get-repos conf))
 
+(defmulti get-dest-update-fn
+  "Returns a function which accepts a remote-spec with local-path to update from the local repo"
+  :type)
+
+(defmethod get-dest-update-fn :code-commit [dest-conf]
+  (conform-or-throw ::ss/code-commit-dest-conf "invalid CodeCommit destination conf" dest-conf)
+  (partial cc/update-cc-from-local dest-conf))
+
 (defn update-local-repo
   "Updates a repo on local disk from the given remote and returns the jgit repository object of the local repo"
   [base-path remote]
@@ -67,28 +76,51 @@
           ;; Local path doesn't exist so this is a new clone.
           (do (log/infof "Cloning new repo: %s -> %s" url local-path)
               (git/git-clone url :dir local-path :mirror? true :monitor progress-monitor))))
+
+      ;; Return the remote along with the local path
+      (assoc remote :local-path local-path)
+
       (catch Exception e
         (log/errorf e "Error updating %s" remote)
         nil))))
 
-#_(let [conf {:source           {:type             :static
-                               :private-key-path "/Users/dboitnot/.ssh/id_rsa_sig_ellucian_git"
-                               :urls             ["ssh://git@banner-src.ellucian.com/banner/plugins/banner_student_admissions"
-                                                  "ssh://git@banner-src.ellucian.com/banner/plugins/banner_common_api"
-                                                  "ssh://git@banner-src.ellucian.com/mobile/ms-notification-core"
-                                                  "ssh://git@banner-src.ellucian.com/powercampus/integrationservices-900"]}
-            :local-cache-path "tmp"
-            :whitelist        [{:path-regex "^/banner"}
-                               {:path-regex "^/mobile"}]
-            :blacklist [{:path-regex "^/banner/plugins/banner_common_api"}]}]
-  (let [{:keys [source whitelist blacklist local-cache-path]} (conform-or-throw ::ss/mirror-conf
-                                                                                "Invalid mirror config" conf)]
+(defn- mirror-single
+  "Mirror a single repository"
+  [local-cache-path update-dest-fn remote-spec]
+  (log/infof "Mirroring %s" (:url remote-spec))
+  (when-let [r (update-local-repo local-cache-path remote-spec)]
+    (update-dest-fn r)))
+
+(defn mirror-all
+  "Mirror all repositories based on conf"
+  [conf]
+  (let [{:keys [source dest whitelist blacklist local-cache-path]} (conform-or-throw ::ss/mirror-conf
+                                                                                     "Invalid mirror config" conf)
+        update-dest (get-dest-update-fn dest)]
     (->> source get-remotes
          (filter (whitelist-filter whitelist))
          (remove (blacklist-filter blacklist))
-         (map #(update-local-repo local-cache-path %))
-         (filter identity)
+         (map #(mirror-single local-cache-path update-dest %))
          doall)))
+
+#_(let [static-source {:type             :static
+                     :private-key-path "/Users/dboitnot/.ssh/id_rsa_sig_ellucian_git"
+                     :urls             ["ssh://git@banner-src.ellucian.com/banner/plugins/banner_student_admissions"
+                                        "ssh://git@banner-src.ellucian.com/banner/plugins/banner_common_api"
+                                        "ssh://git@banner-src.ellucian.com/mobile/ms-notification-core"
+                                        "ssh://git@banner-src.ellucian.com/powercampus/integrationservices-900"]}
+
+      gitolite-source {:type             :gitolite
+                       :private-key-path "/Users/dboitnot/.ssh/id_rsa_sig_ellucian_git"
+                       :remote-host      "banner-src.ellucian.com"}
+      conf {:source           gitolite-source
+
+            :dest             {:type            :code-commit
+                               :ssm-creds-param "delete-me-git-mirror-creds"}
+            :local-cache-path "tmp"
+            :whitelist        [{:path-regex "^/banner"}]
+            :blacklist        [{:path-regex "^/banner/plugins/banner_common_api"}]}]
+  (mirror-all conf))
 
 #_(let [static-conf {:type             :static
                      :private-key-path "/Users/dboitnot/.ssh/id_rsa_sig_ellucian_git"

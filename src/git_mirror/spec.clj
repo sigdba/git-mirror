@@ -24,11 +24,18 @@
 
 (s/def ::source (s/multi-spec source-type :type))
 
-(let [source-conf {:type             :gitolite
-                   :remote-host      "banner-src.ellucian.com"
-                   :private-key-path "/Users/dboitnot/.ssh/id_rsa_sig_ellucian_git"
-                   :urls             ["url1" "url2"]}]
-  (s/conform ::gitolite-source-conf source-conf))
+;;
+;; Destination Configuration
+;;
+
+(s/def ::ssm-creds-param string?)
+
+(defmulti dest-type :type)
+
+(s/def ::code-commit-dest-conf (s/keys :opt-un [::ssm-creds-param]))
+(defmethod dest-type :code-commit [_] ::code-commit-dest-conf)
+
+(s/def ::dest (s/multi-spec dest-type :type))
 
 ;;
 ;; Overall Configuration
