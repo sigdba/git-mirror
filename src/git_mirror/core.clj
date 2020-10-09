@@ -118,7 +118,8 @@
             :dest             {:type            :code-commit
                                :ssm-creds-param "delete-me-git-mirror-creds"}
             :local-cache-path "tmp"
-            :whitelist        [{:path-regex "^/banner"}]
+            :whitelist        [#_{:path-regex "^/banner"}
+                               {:path-regex "banner_student_admissions"}]
             :blacklist        [{:path-regex "^/banner/plugins/banner_common_api"}]}]
   (mirror-all conf))
 

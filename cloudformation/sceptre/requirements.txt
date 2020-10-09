@@ -1,0 +1,3 @@
+boto3==1.15.15
+sceptre==2.4.0
+troposphere==2.6.2

@@ -11,9 +11,13 @@
                  [clj-commons/clj-ssh "0.5.15"]             ; Pure Java SSH client
                  [clj-jgit "1.0.0"]                         ; Pure Java Git client
 
+                 ;; Lambda integration
+                 [com.amazonaws/aws-lambda-java-core "1.2.1"]
+
                  ;; AWS API
                  [com.cognitect.aws/api "0.8.474"]
                  [com.cognitect.aws/endpoints "1.1.11.842"]
                  [com.cognitect.aws/ssm "807.2.729.0"]
                  [com.cognitect.aws/codecommit "801.2.704.0"]]
-  :repl-options {:init-ns git-mirror.core})
+  :repl-options {:init-ns git-mirror.core}
+  :aot :all)

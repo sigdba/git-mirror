@@ -1,0 +1,9 @@
+---
+template_path: CodeBuildProject.yaml
+parameters:
+  ProjectName: git-mirror
+  RepoArn: arn:aws:codecommit::some-app
+  SourceType: GITHUB
+  RepoUrl: https://github.com/sigdba/git-mirror.git
+  EnvImage: aws/codebuild/amazonlinux2-x86_64-standard:2.0
+  ArtifactBucket: sig-lambda-stage
