@@ -23,5 +23,6 @@ phases:
       - LEIN_ROOT=true lein uberjar
 
 artifacts:
+  base-directory: target
   files:
-    - target/*-standalone.jar
+    - "*-standalone.jar"
