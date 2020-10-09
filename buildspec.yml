@@ -2,6 +2,8 @@ version: 0.2
 
 phases:
   install:
+    runtime-versions:
+      java: openjdk8
     commands:
       # Upgrade AWS CLI to the latest version; Install Leiningen; Install Clojure CLI tools
       - cd $HOME
@@ -20,6 +22,6 @@ phases:
     commands:
       - LEIN_ROOT=true lein uberjar
 
-  artifacts:
-    files:
-      - target/*-standalone.jar
+artifacts:
+  files:
+    - target/*-standalone.jar
