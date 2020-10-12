@@ -1,9 +1,13 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
 Parameters:
-#  VpcId:
-#    Type: AWS::EC2::VPC::Id
-#    Description: VPC into which the function will be deployed
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC into which the function will be deployed
+
+  SubnetId:
+    Type: String
+    Description: Subnet for EFS access
 
   JarBucket:
     Type: String
@@ -16,6 +20,8 @@ Parameters:
 Resources:
   LambdaFunction:
     Type: AWS::Lambda::Function
+    DependsOn:
+      - EfsMountTarget
     Properties:
       Code:
         S3Bucket: !Ref JarBucket
@@ -24,6 +30,41 @@ Resources:
       Role: !GetAtt LambdaExecutionRole.Arn
       Runtime: java8
       MemorySize: 256
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref EfsSecurityGroup
+        SubnetIds:
+          - !Ref SubnetId
+      FileSystemConfigs:
+        - Arn: !GetAtt EfsAccessPoint.Arn
+          LocalMountPath: /mnt/cache
+
+  EfsFileSystem:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      PerformanceMode: generalPurpose
+
+  EfsAccessPoint:
+    Type: AWS::EFS::AccessPoint
+    Properties:
+      FileSystemId: !Ref EfsFileSystem
+
+  EfsMountTarget:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref EfsFileSystem
+      SubnetId: !Ref SubnetId
+      SecurityGroups:
+        - !Ref EfsSecurityGroup
+
+  EfsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VpcId
+      GroupDescription: "GitMirror mount target SG"
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: "0.0.0.0/0"
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -38,6 +79,8 @@ Resources:
             Action:
               - sts:AssumeRole
       Path: "/"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
       Policies:
         - PolicyName: root
           PolicyDocument:
@@ -47,3 +90,8 @@ Resources:
                 Action:
                   - logs:*
                 Resource: arn:aws:logs:*:*:*
+              - Effect: Allow
+                Action:
+                  - elasticfilesystem:ClientMount
+                  - elasticfilesystem:ClientWrite
+                Resource: !GetAtt EfsFileSystem.Arn

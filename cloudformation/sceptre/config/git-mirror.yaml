@@ -1,5 +1,7 @@
 ---
 template_path: GitMirror.yaml
 parameters:
+  VpcId: vpc-73ac1215
+  SubnetId: subnet-85dee6ba
   JarBucket: sig-lambda-stage
   JarPath: git-mirror/git-mirror-6-pkg.jar
