@@ -1,4 +1,4 @@
-(ns git-mirror.aws-code-commit
+(ns git-mirror.aws.code-commit
   (:require [lambdaisland.uri :as uri]
             [clojure.string :as str]
             [cognitect.aws.client.api :as aws]
