@@ -6,10 +6,11 @@
             [clojure.spec.alpha :as s]
             [git-mirror.spec :as ss])
   (:gen-class
-    :methods [^:static [handler [String] String]]))
+    :methods [^:static [handler [Object] String]])))
 
-(defn -handler [s]
+(defn -handler [m]
   (log/infof "Starting: %s" REVISION-INFO)
+  (log/infof "Received: %s" m)
   "success")
 
 #_(let [spec-ns "git-mirror.spec"]
@@ -25,7 +26,7 @@
            sort)
     #_(aws/doc sqs :SendMessageBatch))
 
-(let [json-conf {"source"           {"type"             "gitolite"
+#_(let [json-conf {"source"           {"type"             "gitolite"
                                      "private-key-path" "/Users/dboitnot/.ssh/id_rsa_sig_ellucian_git"
                                      "remote-host"      "banner-src.ellucian.com"}
 
