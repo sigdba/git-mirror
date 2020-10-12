@@ -39,33 +39,6 @@ Resources:
         - Arn: !GetAtt EfsAccessPoint.Arn
           LocalMountPath: /mnt/cache
 
-  EfsFileSystem:
-    Type: AWS::EFS::FileSystem
-    Properties:
-      PerformanceMode: generalPurpose
-
-  EfsAccessPoint:
-    Type: AWS::EFS::AccessPoint
-    Properties:
-      FileSystemId: !Ref EfsFileSystem
-
-  EfsMountTarget:
-    Type: AWS::EFS::MountTarget
-    Properties:
-      FileSystemId: !Ref EfsFileSystem
-      SubnetId: !Ref SubnetId
-      SecurityGroups:
-        - !Ref EfsSecurityGroup
-
-  EfsSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      VpcId: !Ref VpcId
-      GroupDescription: "GitMirror mount target SG"
-      SecurityGroupEgress:
-        - IpProtocol: -1
-          CidrIp: "0.0.0.0/0"
-
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -95,3 +68,48 @@ Resources:
                   - elasticfilesystem:ClientMount
                   - elasticfilesystem:ClientWrite
                 Resource: !GetAtt EfsFileSystem.Arn
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt SqsQueue.Arn
+
+  SqsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      ReceiveMessageWaitTimeSeconds: 20
+
+  SqsEventSource:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      EventSourceArn: !GetAtt SqsQueue.Arn
+      FunctionName: !GetAtt LambdaFunction.Arn
+
+  EfsFileSystem:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      PerformanceMode: generalPurpose
+
+  EfsAccessPoint:
+    Type: AWS::EFS::AccessPoint
+    Properties:
+      FileSystemId: !Ref EfsFileSystem
+
+  EfsMountTarget:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref EfsFileSystem
+      SubnetId: !Ref SubnetId
+      SecurityGroups:
+        - !Ref EfsSecurityGroup
+
+  EfsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VpcId
+      GroupDescription: "GitMirror mount target SG"
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: "0.0.0.0/0"
