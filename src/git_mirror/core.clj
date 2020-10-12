@@ -3,7 +3,7 @@
         [git-mirror.filter])
   (:require [git-mirror.spec :as ss]
             [git-mirror.gitolite :as gitolite]
-            [git-mirror.aws-code-commit :as cc]
+            [git-mirror.aws.code-commit :as cc]
             [clojure.java.io :as io]
             [taoensso.timbre :as log]
             [lambdaisland.uri :as uri]
