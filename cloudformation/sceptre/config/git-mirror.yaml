@@ -2,4 +2,4 @@
 template_path: GitMirror.yaml
 parameters:
   JarBucket: sig-lambda-stage
-  JarPath: git-mirror/git-mirror-5-pkg.jar
+  JarPath: git-mirror/git-mirror-6-pkg.jar
