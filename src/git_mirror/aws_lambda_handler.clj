@@ -1,7 +1,9 @@
 (ns git-mirror.aws-lambda-handler
   (:use [git-mirror.revision])
+  (:require [taoensso.timbre :as log])
   (:gen-class
     :methods [^:static [handler [String] String]]))
 
 (defn -handler [s]
-  (str "Hello " s "!" REVISION-INFO))
+  (log/infof "Starting: %s" REVISION-INFO)
+  "success")
