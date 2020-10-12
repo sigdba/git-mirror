@@ -1,0 +1,49 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+#  VpcId:
+#    Type: AWS::EC2::VPC::Id
+#    Description: VPC into which the function will be deployed
+
+  JarBucket:
+    Type: String
+    Description: Name of the S3 bucket containing the function jar file
+
+  JarPath:
+    Type: String
+    Description: Path to the jar file within the S3 bucket
+
+Resources:
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref JarBucket
+        S3Key: !Ref JarPath
+      Handler: git_mirror.aws_lambda_handler::handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: java8
+      MemorySize: 256
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:*
+                Resource: arn:aws:logs:*:*:*
