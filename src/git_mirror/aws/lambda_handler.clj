@@ -6,7 +6,7 @@
             [clojure.spec.alpha :as s]
             [git-mirror.spec :as ss])
   (:gen-class
-    :methods [^:static [handler [Object] String]])))
+    :methods [^:static [handler [Object] String]]))
 
 (defn -handler [m]
   (log/infof "Starting: %s" REVISION-INFO)
