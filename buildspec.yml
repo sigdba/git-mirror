@@ -17,12 +17,21 @@ phases:
   pre_build:
     commands:
       - date
+      - bash build/version-info.sh >src/git_mirror/revision.clj
+      - LEIN_ROOT=true lein clean
 
   build:
     commands:
       - LEIN_ROOT=true lein uberjar
 
+  post_build:
+    commands:
+      - mv target/*-standalone.jar ./git-mirror-${CODEBUILD_BUILD_NUMBER}-pkg.jar
+
 artifacts:
-  base-directory: target
   files:
-    - "*-standalone.jar"
+    - "git-mirror-*-pkg.jar"
+
+cache:
+  paths:
+    - '/root/.m2/**/*'
