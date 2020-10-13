@@ -26,13 +26,14 @@ Resources:
       Code:
         S3Bucket: !Ref JarBucket
         S3Key: !Ref JarPath
-      Handler: git_mirror.aws_lambda_handler::handler
+      Handler: git_mirror.aws.lambda_handler::handler
       Role: !GetAtt LambdaExecutionRole.Arn
       Runtime: java8
-      MemorySize: 256
+      MemorySize: 512
+      Timeout: 900
       VpcConfig:
         SecurityGroupIds:
-          - !Ref EfsSecurityGroup
+          - !Ref LambdaSecurityGroup
         SubnetIds:
           - !Ref SubnetId
       FileSystemConfigs:
@@ -75,6 +76,15 @@ Resources:
                   - sqs:GetQueueAttributes
                 Resource: !GetAtt SqsQueue.Arn
 
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VpcId
+      GroupDescription: "Git Mirror Lambda SG"
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: "0.0.0.0/0"
+
   SqsQueue:
     Type: AWS::SQS::Queue
     Properties:
@@ -113,3 +123,6 @@ Resources:
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: "0.0.0.0/0"
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          SourceSecurityGroupId: !Ref LambdaSecurityGroup
