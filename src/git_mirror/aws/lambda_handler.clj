@@ -9,9 +9,10 @@
   (:gen-class
     :methods [^:static [handler [java.io.InputStream] String]]))
 
-(defn -handler [input-stream]
+(defn -handler [input]
   (log/infof "Starting: %s" REVISION-INFO)
-  (let [input (json/parse-string input-stream true)]
+  (let [input-str (if (string? input) input (slurp input))
+        input (json/parse-string input-str true)]
     (log/infof "Received:\n%s" (prn-str input)))
   "success")
 
