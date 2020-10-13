@@ -4,4 +4,4 @@ parameters:
   VpcId: vpc-73ac1215
   SubnetId: subnet-85dee6ba
   JarBucket: sig-lambda-stage
-  JarPath: git-mirror/git-mirror-9-pkg.jar
+  JarPath: git-mirror/git-mirror-10-pkg.jar

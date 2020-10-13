@@ -7,8 +7,7 @@
             [git-mirror.spec :as ss]
             [cheshire.core :as json])
   (:gen-class
-    :methods [^:static [handler [InputStream] String]])
-  (:import (java.io InputStream)))
+    :methods [^:static [handler [java.io.InputStream] String]]))
 
 (defn -handler [input-stream]
   (log/infof "Starting: %s" REVISION-INFO)
