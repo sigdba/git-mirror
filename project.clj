@@ -11,6 +11,7 @@
                  [clj-commons/clj-ssh "0.5.15"]             ; Pure Java SSH client
                  [clj-jgit "1.0.0"]                         ; Pure Java Git client
                  [com.rpl/specter "1.1.3"]                  ; Advanced data manipulation
+                 [cheshire "5.10.0"]                        ; JSON parsing
 
                  ;; Lambda integration
                  [com.amazonaws/aws-lambda-java-core "1.2.1"]

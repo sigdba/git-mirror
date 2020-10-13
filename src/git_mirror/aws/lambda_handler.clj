@@ -4,13 +4,16 @@
   (:require [taoensso.timbre :as log]
             [cognitect.aws.client.api :as aws]
             [clojure.spec.alpha :as s]
-            [git-mirror.spec :as ss])
+            [git-mirror.spec :as ss]
+            [cheshire.core :as json])
   (:gen-class
-    :methods [^:static [handler [Object] String]]))
+    :methods [^:static [handler [InputStream] String]])
+  (:import (java.io InputStream)))
 
-(defn -handler [m]
+(defn -handler [input-stream]
   (log/infof "Starting: %s" REVISION-INFO)
-  (log/infof "Received: %s" m)
+  (let [input (json/parse-string input-stream true)]
+    (log/infof "Received:\n%s" (prn-str input)))
   "success")
 
 #_(let [spec-ns "git-mirror.spec"]

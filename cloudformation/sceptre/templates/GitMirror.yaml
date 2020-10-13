@@ -126,3 +126,13 @@ Resources:
       SecurityGroupIngress:
         - IpProtocol: -1
           SourceSecurityGroupId: !Ref LambdaSecurityGroup
+
+  EbRule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: "rate(1 day)"        # TODO: Make this a parameter
+      Targets:
+        - Arn: !GetAtt LambdaFunction.Arn
+          Id: LambdaTarget
+          Input: !Sub |
+            { "foo": "bar" }
