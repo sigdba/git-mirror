@@ -72,7 +72,8 @@
          (map #(aws-invoke-throw sqs-client {:op      :SendMessage
                                              :request {:QueueUrl    queue-url
                                                        :MessageBody %}}
-                                 "Failed to queue repo for mirroring" {})))))
+                                 "Failed to queue repo for mirroring" {}))
+         doall)))
 
 (defn op-mirror
   "Mirror a single repository"
