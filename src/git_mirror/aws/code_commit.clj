@@ -1,4 +1,5 @@
 (ns git-mirror.aws.code-commit
+  (:use [git-mirror.aws.aws-util])
   (:require [lambdaisland.uri :as uri]
             [clojure.string :as str]
             [cognitect.aws.client.api :as aws]
@@ -8,19 +9,6 @@
             [clj-jgit.porcelain :as git]
             [taoensso.timbre :as log])
   (:import (java.util Date)))
-
-(defn- throw-aws-err
-  "Throws an ex-info exception with the given message and info dict along with the AWS response."
-  [msg info-map response]
-  (throw (ex-info msg (assoc info-map :response response))))
-
-(defn- aws-invoke-throw
-  "Invokes the given AWS request and returns the response or throws an exception if it failed."
-  [client op-map msg info-map]
-  (let [resp (aws/invoke client op-map)]
-    (if (:cognitect.anomalies/category resp)
-      (throw-aws-err msg info-map resp)
-      resp)))
 
 (defn path-munge
   "Returns a string which will work as a CodeCommit repo name for the given repo spec"
@@ -145,13 +133,8 @@
 (defn- creds-from-ssm
   "Returns a credentials map by retrieving "
   [param-name]
-  (let [client (aws/client {:api :ssm})
-        [uid pw & rest] (->> (aws-invoke-throw client {:op      :GetParameter
-                                                       :request {:Name           param-name
-                                                                 :WithDecryption true}}
-                                               "Error fetching credentials from SSM parameter"
-                                               {:param-name param-name})
-                             :Parameter :Value
+  (let [client (aws/client {:api :ssm})                     ; TODO: client should be injected
+        [uid pw & rest] (->> (get-ssm-param client param-name)
                              (str/split-lines)
                              (map str/trim)
                              (filter identity))]

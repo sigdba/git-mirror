@@ -17,6 +17,14 @@ Parameters:
     Type: String
     Description: Path to the jar file within the S3 bucket
 
+  PrivateKeyParam:
+    Type: String
+    Description: Name of the SSM parameter containing the SSH private key
+
+  MirrorConfParam:
+    Type: String
+      Description: Name of the SSM parameter containing the git-mirror configuration in EDN
+
 Resources:
   LambdaFunction:
     Type: AWS::Lambda::Function
@@ -39,6 +47,10 @@ Resources:
       FileSystemConfigs:
         - Arn: !GetAtt EfsAccessPoint.Arn
           LocalMountPath: /mnt/cache
+      Environment:
+        Variables:
+          GITMIRROR_SOURCE_PRIVKEY_SSM_PARAM: !Ref PrivateKeyParam
+          GITMIRROR_CONF_SSM_PARAM: !Ref MirrorConfParam
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
