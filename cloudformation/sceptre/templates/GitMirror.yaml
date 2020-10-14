@@ -25,6 +25,11 @@ Parameters:
     Type: String
     Description: Name of the SSM parameter containing the git-mirror configuration in EDN
 
+  ParamKey:
+    Type: String
+    Description: Name of the KMS key needed to decrypt parameters
+    Default: "key/CMK"
+
 Resources:
   LambdaFunction:
     Type: AWS::Lambda::Function
@@ -83,10 +88,18 @@ Resources:
                 Resource: !GetAtt EfsFileSystem.Arn
               - Effect: Allow
                 Action:
-                  - sqs:ReceiveMessage
-                  - sqs:DeleteMessage
-                  - sqs:GetQueueAttributes
+                  - sqs:*
                 Resource: !GetAtt SqsQueue.Arn
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                Resource: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:${ParamKey}"
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                Resource:
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PrivateKeyParam}"
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${MirrorConfParam}"
 
   LambdaSecurityGroup:
     Type: AWS::EC2::SecurityGroup
