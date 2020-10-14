@@ -23,7 +23,7 @@ Parameters:
 
   MirrorConfParam:
     Type: String
-      Description: Name of the SSM parameter containing the git-mirror configuration in EDN
+    Description: Name of the SSM parameter containing the git-mirror configuration in EDN
 
 Resources:
   LambdaFunction:
