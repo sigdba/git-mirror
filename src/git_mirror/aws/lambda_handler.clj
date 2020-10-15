@@ -69,6 +69,7 @@
 (defn op-queue-for-mirror
   "Fetch the list of repositories to mirror and push them into the SQS queue"
   [mirror-conf op-map]
+  (log/info "Queuing repos for mirroring...")
   (let [{:keys [queue-arn]} op-map
         queue-url (get-queue-url queue-arn)]
     (->> (get-source-repos mirror-conf)
@@ -83,7 +84,8 @@
 
 (defn op-list-repos
   "Fetch the list of repositories to mirror and dump it to the log"
-  [mirror-conf]
+  [mirror-conf _]
+  (log/debug "Fetching repository list")
   (->> (get-source-repos mirror-conf)
        (map :url)
        (str/join "\n")
@@ -96,22 +98,41 @@
     (mirror-single-with-conf mirror-conf {:url              remote-url
                                           :private-key-path (get-in mirror-conf [:source :private-key-path])})))
 
-;; TODO: spec the ops so we can give better errors when they're malformed
+;;
+;; The the SQS event source will continuously retry events if the Lambda call fails. For this reason we want to clear
+;; the event from the queue before making other, possibly error-prone, API calls. A big potential source of errors is
+;; building the configuration because it involves user inputs. So we want to defer the construction of the mirror-conf
+;; until after handle-sqs-event has had a chance to delete the event.
+;;
+
+(def get-mirror-conf (memoize (fn [] (conform-or-throw ::ss/mirror-conf "Invalid mirror configuration"
+                                                       (-> (get-conf)
+                                                           (assoc-in [:source :private-key-path] (get-private-key))
+                                                           (assoc :local-cache-path (get-cache-path)))))))
+
+(defn- get-op-fn
+  "Returns the function for the named op"
+  [op-name]
+  (let [op-fn-name (str "op-" op-name)
+        sym (->> (ns-publics 'git-mirror.aws.lambda-handler)
+                 (filter (fn [[s _]] (= (name s) op-fn-name)))
+                 (filter (fn [[_ f]] (->> f meta :arglists (map count) (reduce max) (= 2))))
+                 (map first)
+                 first)]
+    (and sym (resolve sym))))
+
+;; TODO: spec the op-map's so we can give better errors when they're malformed
 (defn perform-op
   "Perform a single operation"
-  [mirror-conf op-map]
-  (let [{:keys [op]} op-map]
-    (log/infof "Message:\n%s" (prn-str op-map))
-    (case op
-      "ping" (log/infof "Conf:\n%s" (prn-str mirror-conf))
-      "list-repos" (op-list-repos mirror-conf)
-      "queue-for-mirror" (op-queue-for-mirror mirror-conf op-map)
-      "mirror" (op-mirror mirror-conf op-map)
-      (throw (ex-info "unrecognized request" {:op-map op-map})))))
+  [op-map]
+  (let [{:keys [op]} op-map
+        op-fn (get-op-fn op)]
+    (when-not op-fn (throw (ex-info (str "Unrecognized op: " op) {:op-map op-map})))
+    (op-fn (get-mirror-conf) op-map)))
 
 (defn handle-sqs-event
   "Process a single SQS event, removing it from the queue afterward."
-  [mirror-conf event]
+  [event]
   (let [{:keys [body eventSourceARN receiptHandle]} event]
     ;; The event source mapping will keep retrying failed events forever, so we delete the message from the queue
     ;; BEFORE processing it to avoid thrashing.
@@ -119,52 +140,20 @@
                             :request {:QueueUrl      (get-queue-url eventSourceARN)
                                       :ReceiptHandle receiptHandle}}
                       "Error deleting event" {:event event})
-    (perform-op mirror-conf body)))
+    (perform-op body)))
 
 (defn handle-message
   "Handle the various forms that a message may come in."
-  [mirror-conf input]
-  (let [handle (partial handle-message mirror-conf)]
-    (log/debugf "Handling message:\n%s" (prn-str input))
-    (cond
-      (instance? InputStream input) (->> input slurp handle)
-      (string? input) (->> input parse-message handle)
-      (sequential? input) (->> input (map handle) doall)
-      (:op input) (->> input (perform-op mirror-conf))
-      (:Records input) (->> input extract-sqs-events (map #(handle-sqs-event mirror-conf %)) doall)
-      :else (throw (ex-info "Unrecognized message" {:input input})))))
+  [input]
+  (log/debugf "Handling message:\n%s" (prn-str input))
+  (cond
+    (instance? InputStream input) (->> input slurp handle-message)
+    (string? input) (->> input parse-message handle-message)
+    (sequential? input) (->> input (map handle-message) doall)
+    (:op input) (->> input perform-op)
+    (:Records input) (->> input extract-sqs-events (map handle-sqs-event) doall)
+    :else (throw (ex-info "Unrecognized message" {:input input}))))
 
 (defn -handler [input]
   (log/infof "Starting: %s" REVISION-INFO)
-  (let [private-key (get-private-key)
-        mirror-conf (conform-or-throw ::ss/mirror-conf "Invalid mirror configuration"
-                                      (-> (get-conf)
-                                          (assoc-in [:source :private-key-path] private-key)
-                                          (assoc :local-cache-path (get-cache-path))))]
-    (handle-message mirror-conf input)))
-
-(let [private-key (get-private-key)
-      mirror-conf {:source           {:type             :gitolite
-                                      :remote-host      "banner-src.ellucian.com"
-                                      :private-key-path private-key}
-                   :dest             {:type            :code-commit
-                                      :ssm-creds-param "delete-me-git-mirror-creds"}
-                   :local-cache-path "tmp"
-                   :whitelist        [{:path-regex "^/banner"}
-                                      #_{:path-regex "banner_student_admissions"}]
-                   :blacklist        [{:path-regex "^/banner/tcc/"}]}
-      queue-arn "arn:aws:sqs:us-east-1:803071473383:gm-git-mirror-SqsQueue-1QP2ALYFXFMQ0"
-      mirror-op {:op         "mirror"
-                 :remote-url "ssh://git@banner-src.ellucian.com/banner/plugins/banner_student_admissions"}
-      ping-op {:op "ping"}
-      list-op {:op "list-repos"}]
-
-  (-handler mirror-op))
-
-
-
-#_(let [sqs (aws/client {:api :sqs})]
-    (->> (aws/ops sqs)
-         keys
-         sort)
-    (aws/doc sqs :SendMessage))
+  (handle-message input))
