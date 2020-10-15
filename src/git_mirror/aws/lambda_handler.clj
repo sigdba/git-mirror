@@ -141,7 +141,7 @@
     (instance? InputStream input) (->> input slurp handle-message)
     (string? input) (->> input parse-message handle-message)
     (sequential? input) (->> input (map handle-message) doall)
-    (:op input) (->> input perform-op)
+    (:op input) (perform-op input)
     (:Records input) (->> input extract-sqs-events (map handle-sqs-event) doall)
     :else (throw (ex-info "Unrecognized message" {:input input}))))
 
