@@ -96,9 +96,11 @@
 (defn- mirror-single
   "Mirror a single repository"
   [local-cache-path update-dest-fn remote-spec]
-  (log/infof "Mirroring %s" (:url remote-spec))
-  (when-let [r (update-local-repo local-cache-path remote-spec)]
-    (update-dest-fn r)))
+  (let [url (:url remote-spec)]
+    (when-not url (throw (ex-info "missing :url in remote-spec" {:remote-spec remote-spec})))
+    (log/infof "Mirroring %s" url)
+    (when-let [r (update-local-repo local-cache-path remote-spec)]
+      (update-dest-fn r))))
 
 (defn- mirror-args-with-conf
   "Returns a vector of parameters to pass to mirror-single based on conf"
