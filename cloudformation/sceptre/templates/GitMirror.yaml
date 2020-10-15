@@ -27,13 +27,28 @@ Parameters:
 
   CodeCommitCredsParam:
     Type: String
-    Description: (Optional) Name of the SSM parameter containing the HTTPS credentials for CodeCommit
+    Description: Name of the SSM parameter containing the HTTPS credentials for CodeCommit
     Default: "git-mirror-code-commit-creds"
 
   ParamKey:
     Type: String
     Description: Name of the KMS key needed to decrypt parameters
     Default: "key/CMK"
+
+  ScheduleExpr:
+    Type: String
+    Description: cron or rate expression for scheduled execution
+    Default: "rate(1 day)"
+
+  EfsMountPoint:
+    Type: String
+    Description: Path where the EFS volume will be mounted in the Lambda environment
+    Default: /mnt/cache
+
+  EfsBaseDir:
+    Type: String
+    Description: Path within EFS volume which will be the base of all GitMirror files.
+    Default: /git_mirror
 
 Resources:
   LambdaFunction:
@@ -56,12 +71,13 @@ Resources:
           - !Ref SubnetId
       FileSystemConfigs:
         - Arn: !GetAtt EfsAccessPoint.Arn
-          LocalMountPath: /mnt/cache
+          LocalMountPath: !Ref EfsMountPoint
       Environment:
         Variables:
           GITMIRROR_SOURCE_PRIVKEY_SSM_PARAM: !Ref PrivateKeyParam
           GITMIRROR_CONF_SSM_PARAM: !Ref MirrorConfParam
-          XDG_CONFIG_HOME: /mnt/cache/git_mirror_cache/.xdg_config
+          GITMIRROR_CACHE_DIR: !Sub "${EfsMountPoint}/cache"
+          XDG_CONFIG_HOME: !Sub "${EfsMountPoint}/.xdg_config"
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -148,7 +164,7 @@ Resources:
         Gid: 1000
         Uid: 1000
       RootDirectory:
-        Path: /git_mirror
+        Path: !Ref EfsBaseDir
         CreationInfo:
           OwnerGid: 1000
           OwnerUid: 1000
@@ -177,9 +193,12 @@ Resources:
   EbRule:
     Type: AWS::Events::Rule
     Properties:
-      ScheduleExpression: "rate(1 day)"        # TODO: Make this a parameter
+      ScheduleExpression: !Ref ScheduleExpr
       Targets:
         - Arn: !GetAtt LambdaFunction.Arn
           Id: LambdaTarget
           Input: !Sub |
-            { "foo": "bar" }
+            {
+              "op": "queue-for-mirror",
+              "queue-arn": "${SqsQueue.Arn}"
+            }

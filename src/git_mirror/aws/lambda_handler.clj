@@ -24,12 +24,17 @@
   (->> recv :Records
        (map #(update % :body parse-message))))
 
+(defn- require-env-var
+  "Gets an environment variable and throws an exception if it's not defined"
+  [env-var]
+  (let [ret (System/getenv env-var)]
+    (if-not ret (throw (ex-info (str "Missing environment variable: " env-var) {:env-var env-var})))
+    ret))
+
 (defn- ssm-param-from-env
   "Fetches an SSM param specified by an environment variable"
   [ssm-client env-var]
-  (let [param-name (System/getenv env-var)]
-    (if-not param-name (throw (ex-info (str "Missing environment variable: " env-var) {:env-var env-var})))
-    (get-ssm-param ssm-client param-name)))
+  (->> env-var require-env-var (get-ssm-param ssm-client)))
 
 (defn- get-conf
   "Read the mirror-conf from an SSM parameter specified in an environment variable"
@@ -44,6 +49,11 @@
     (->> (ssm-param-from-env ssm-client "GITMIRROR_SOURCE_PRIVKEY_SSM_PARAM")
          (spit fp))
     fp))
+
+(defn- get-cache-path
+  "Reads the cache path from an environment variable"
+  []
+  (require-env-var "GITMIRROR_CACHE_DIR"))
 
 (defn- -get-queue-url
   "Retrieve the URL for the given queue"
@@ -124,26 +134,28 @@
         private-key (get-private-key ssm-client)
         mirror-conf (conform-or-throw ::ss/mirror-conf "Invalid mirror configuration"
                                       (-> (get-conf ssm-client)
-                                          (assoc-in [:source :private-key-path] private-key)))]
+                                          (assoc-in [:source :private-key-path] private-key)
+                                          (assoc :local-cache-path (get-cache-path))))]
     (handle-message mirror-conf input)))
 
 #_(let [ssm-client (aws/client {:api :ssm})
-        sqs-client (aws/client {:api :sqs})
-        private-key (get-private-key ssm-client)
-        conf {:source           {:type             :gitolite
-                                 :remote-host      "banner-src.ellucian.com"
-                                 :private-key-path private-key}
-              :dest             {:type            :code-commit
-                                 :ssm-creds-param "delete-me-git-mirror-creds"}
-              :local-cache-path "tmp"
-              :whitelist        [#_{:path-regex "^/banner"}
-                                 {:path-regex "banner_student_admissions"}]
-              :blacklist        [{:path-regex "^/banner/plugins/banner_common_api"}]}
-        queue-arn "arn:aws:sqs:us-east-1:803071473383:gm-git-mirror-SqsQueue-1QP2ALYFXFMQ0"
-        op-map {:op         "mirror"
-                :remote-url "ssh://git@banner-src.ellucian.com/banner/plugins/banner_student_admissions"}]
+      sqs-client (aws/client {:api :sqs})
+      private-key (get-private-key ssm-client)
+      conf {:source           {:type             :gitolite
+                               :remote-host      "banner-src.ellucian.com"
+                               :private-key-path private-key}
+            :dest             {:type            :code-commit
+                               :ssm-creds-param "delete-me-git-mirror-creds"}
+            :local-cache-path "tmp"
+            :whitelist        [#_{:path-regex "^/banner"}
+                               {:path-regex "banner_student_admissions"}]
+            :blacklist        [{:path-regex "^/banner/plugins/banner_common_api"}]}
+      queue-arn "arn:aws:sqs:us-east-1:803071473383:gm-git-mirror-SqsQueue-1QP2ALYFXFMQ0"
+      mirror-op {:op         "mirror"
+                 :remote-url "ssh://git@banner-src.ellucian.com/banner/plugins/banner_student_admissions"}
+      ping-op {:op "ping"}]
 
-    (-handler op-map))
+  (-handler ping-op))
 
 
 
