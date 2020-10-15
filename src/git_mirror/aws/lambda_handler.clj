@@ -1,6 +1,5 @@
 (ns git-mirror.aws.lambda-handler
   (:use [git-mirror.revision]
-        [com.rpl.specter]
         [git-mirror.util]
         [git-mirror.aws.aws-util])
   (:require [taoensso.timbre :as log]

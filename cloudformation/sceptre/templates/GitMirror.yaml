@@ -25,6 +25,11 @@ Parameters:
     Type: String
     Description: Name of the SSM parameter containing the git-mirror configuration in EDN
 
+  CodeCommitCredsParam:
+    Type: String
+    Description: (Optional) Name of the SSM parameter containing the HTTPS credentials for CodeCommit
+    Default: "git-mirror-code-commit-creds"
+
   ParamKey:
     Type: String
     Description: Name of the KMS key needed to decrypt parameters
@@ -106,6 +111,7 @@ Resources:
                 Resource:
                   - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PrivateKeyParam}"
                   - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${MirrorConfParam}"
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CodeCommitCredsParam}"
 
   LambdaSecurityGroup:
     Type: AWS::EC2::SecurityGroup
