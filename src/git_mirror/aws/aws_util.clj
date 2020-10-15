@@ -7,20 +7,25 @@
   [msg info-map response]
   (throw (ex-info msg (assoc info-map :response response))))
 
+;; TODO: This would be more flexible if it used a *ref*
+(def get-aws-client (memoize (fn [api] (aws/client {:api api}))))
+
 (defn aws-invoke-throw
   "Invokes the given AWS request and returns the response or throws an exception if it failed."
-  [client op-map msg info-map]
-  (log/debugf "Invoking AWS API:\n%s" (prn-str op-map))
-  (let [resp (aws/invoke client op-map)]
-    (if (:cognitect.anomalies/category resp)
-      (throw-aws-err msg info-map resp)
-      resp)))
+  [api op-map msg info-map]
+  (let [client (if (keyword? api) (get-aws-client api) api)]
+    (log/debugf "Invoking AWS API:\n%s" (prn-str op-map))
+    (let [resp (aws/invoke client op-map)]
+      (if (:cognitect.anomalies/category resp)
+        (throw-aws-err msg info-map resp)
+        resp))))
 
 (defn get-ssm-param
-  [client param-name]
-  (->> (aws-invoke-throw client {:op      :GetParameter
-                                 :request {:Name           param-name
-                                           :WithDecryption true}}
-                         "Error fetching SSM parameter"
-                         {:param-name param-name})
-       :Parameter :Value))
+  ([param-name] (get-ssm-param :ssm param-name))
+  ([client param-name]
+   (->> (aws-invoke-throw client {:op      :GetParameter
+                                  :request {:Name           param-name
+                                            :WithDecryption true}}
+                          "Error fetching SSM parameter"
+                          {:param-name param-name})
+        :Parameter :Value)))

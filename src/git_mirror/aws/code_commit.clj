@@ -34,10 +34,10 @@
 (defn get-repository
   "Returns the AWS info about a given CodeCommit repo or nil if it doesn't exist.
   An exception will be thrown if any other type of failure occurs."
-  [client repo-name]
+  [repo-name]
   (let [{failed :cognitect.anomalies/category type :__type :as resp}
-        (aws/invoke client {:op      :GetRepository
-                            :request {:repositoryName repo-name}})]
+        (aws/invoke (get-aws-client :codecommit) {:op      :GetRepository
+                                                  :request {:repositoryName repo-name}})]
     (if failed
       (if (= type "RepositoryDoesNotExistException")
         nil                                                 ; If it doesn't exist, return nil.
@@ -47,9 +47,9 @@
 
 (defn create-repository!
   "Creates an AWS CodeCommit repository and returns it's details."
-  [client repo-name repo-desc tag-map]
+  [repo-name repo-desc tag-map]
   (log/infof "Creating CodeCommit repository '%s'" repo-name)
-  (->> (aws-invoke-throw client
+  (->> (aws-invoke-throw :codecommit
                          {:op      :CreateRepository
                           :request {:repositoryName        repo-name
                                     :repositoryDescription repo-desc
@@ -61,17 +61,16 @@
 (defn get-repo-for-mirroring
   "Returns (after creating if necessary) a CodeCommit repo set up to mirror the given remote-spec"
 
-  ([client conf remote-spec]
-   (get-repo-for-mirroring client
-                           remote-spec
+  ([conf remote-spec]
+   (get-repo-for-mirroring remote-spec
                            path-munge
                            repo-desc-from
                            repo-tags-from))
 
-  ([client remote-spec name-fn desc-fn tag-map-fn]
+  ([remote-spec name-fn desc-fn tag-map-fn]
    (let [repo-name (name-fn remote-spec)]
-     (or (get-repository client repo-name)
-         (create-repository! client repo-name (desc-fn remote-spec) (tag-map-fn remote-spec))))))
+     (or (get-repository repo-name)
+         (create-repository! repo-name (desc-fn remote-spec) (tag-map-fn remote-spec))))))
 
 (defn- region-from-url
   "Returns the region from a CodeCommit URL"
@@ -133,8 +132,7 @@
 (defn- creds-from-ssm
   "Returns a credentials map by retrieving "
   [param-name]
-  (let [client (aws/client {:api :ssm})                     ; TODO: client should be injected
-        [uid pw & rest] (->> (get-ssm-param client param-name)
+  (let [[uid pw & rest] (->> (get-ssm-param param-name)
                              (str/split-lines)
                              (map str/trim)
                              (filter identity))]
@@ -157,23 +155,22 @@
   [dest-conf remote-spec]
   (let [local-repo-path (:local-path remote-spec)
         local-repo (git/load-repo local-repo-path)
-        client (aws/client {:api :codecommit})
-        cc-url (->> (get-repo-for-mirroring client dest-conf remote-spec) :cloneUrlHttp)]
+        cc-url (->> (get-repo-for-mirroring dest-conf remote-spec) :cloneUrlHttp)]
     (git/with-credentials (creds-from-conf dest-conf cc-url)
       (log/infof "Pushing %s -> %s" local-repo-path cc-url)
       (git/git-push local-repo :remote cc-url :all? true :tags? true))))
 
 #_(let [repos git-mirror.gitolite/ALL-REPOS
-      remote-spec (->> repos first)
-      dest-conf {:type            :code-commit
-                 :ssm-creds-param "delete-me-git-mirror-creds"}
-      local-repo-path "tmp/banner-src.ellucian.com/mobile/ms-notification-core.git"]
-  (let [local-repo (git/load-repo local-repo-path)
-        client (aws/client {:api :codecommit})
-        cc-url (->> (get-repo-for-mirroring client dest-conf remote-spec) :cloneUrlHttp)]
-    (git/with-credentials (creds-from-conf dest-conf cc-url)
-      (log/infof "Pushing %s -> %s" local-repo-path cc-url)
-      (git/git-push local-repo :remote cc-url :all? true :tags? true))))
+        remote-spec (->> repos first)
+        dest-conf {:type            :code-commit
+                   :ssm-creds-param "delete-me-git-mirror-creds"}
+        local-repo-path "tmp/banner-src.ellucian.com/mobile/ms-notification-core.git"]
+    (let [local-repo (git/load-repo local-repo-path)
+          client (aws/client {:api :codecommit})
+          cc-url (->> (get-repo-for-mirroring client dest-conf remote-spec) :cloneUrlHttp)]
+      (git/with-credentials (creds-from-conf dest-conf cc-url)
+        (log/infof "Pushing %s -> %s" local-repo-path cc-url)
+        (git/git-push local-repo :remote cc-url :all? true :tags? true))))
 
 #_(let [cc (aws/client {:api :codecommit})
         ssm (aws/client {:api :ssm})]
