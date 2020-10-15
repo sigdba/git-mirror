@@ -147,7 +147,7 @@
                                           (assoc :local-cache-path (get-cache-path))))]
     (handle-message mirror-conf input)))
 
-(let [ssm-client (aws/client {:api :ssm})
+#_(let [ssm-client (aws/client {:api :ssm})
       sqs-client (aws/client {:api :sqs})
       private-key (get-private-key ssm-client)
       mirror-conf {:source           {:type             :gitolite
