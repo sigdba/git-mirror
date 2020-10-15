@@ -96,6 +96,7 @@ Resources:
                 Action:
                   - codecommit:GetRepository
                   - codecommit:CreateRepository
+                  - codecommit:TagResource
                 Resource: "*"
               - Effect: Allow
                 Action:

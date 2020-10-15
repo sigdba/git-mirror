@@ -97,7 +97,8 @@
   "Process a single SQS event, removing it from the queue afterward."
   [sqs-client mirror-conf event]
   (let [{:keys [body eventSourceARN receiptHandle]} event]
-    ;; We delete the message from the queue BEFORE processing it to avoid thrashing.
+    ;; The event source mapping will keep retrying failed events forever, so we delete the message from the queue
+    ;; BEFORE processing it to avoid thrashing.
     (aws-invoke-throw sqs-client {:op      :DeleteMessage
                                   :request {:QueueUrl      (get-queue-url sqs-client eventSourceARN)
                                             :ReceiptHandle receiptHandle}}
