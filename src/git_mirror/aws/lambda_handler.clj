@@ -103,16 +103,24 @@
                                                            (assoc-in [:source :private-key-path] (get-private-key))
                                                            (assoc :local-cache-path (get-cache-path)))))))
 
+;; Reflective version of get-op-fn
+#_(defn- get-op-fn
+    "Returns the function for the named op"
+    [op-name]
+    (let [op-fn-name (str "op-" op-name)
+          sym (->> (ns-publics 'git-mirror.aws.lambda-handler)
+                   (filter (fn [[s _]] (= (name s) op-fn-name)))
+                   (filter (fn [[_ f]] (->> f meta :arglists (map count) (reduce max) (= 2))))
+                   (map first)
+                   first)]
+      (and sym (resolve sym))))
+
 (defn- get-op-fn
   "Returns the function for the named op"
   [op-name]
-  (let [op-fn-name (str "op-" op-name)
-        sym (->> (ns-publics 'git-mirror.aws.lambda-handler)
-                 (filter (fn [[s _]] (= (name s) op-fn-name)))
-                 (filter (fn [[_ f]] (->> f meta :arglists (map count) (reduce max) (= 2))))
-                 (map first)
-                 first)]
-    (and sym (resolve sym))))
+  (case op-name "list-repos" op-list-repos
+                "mirror" op-mirror
+                "queue-for-mirror" op-queue-for-mirror))
 
 ;; TODO: spec the op-map's so we can give better errors when they're malformed
 (defn perform-op
