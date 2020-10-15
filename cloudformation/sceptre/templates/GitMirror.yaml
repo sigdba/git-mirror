@@ -143,6 +143,9 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       ReceiveMessageWaitTimeSeconds: 20
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
+        maxReceiveCount: 1
 
   SqsEventSource:
     Type: AWS::Lambda::EventSourceMapping
@@ -150,6 +153,11 @@ Resources:
       BatchSize: 1
       EventSourceArn: !GetAtt SqsQueue.Arn
       FunctionName: !GetAtt LambdaFunction.Arn
+
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      ReceiveMessageWaitTimeSeconds: 20
 
   EfsFileSystem:
     Type: AWS::EFS::FileSystem

@@ -98,13 +98,6 @@
     (mirror-single-with-conf mirror-conf {:url              remote-url
                                           :private-key-path (get-in mirror-conf [:source :private-key-path])})))
 
-;;
-;; The the SQS event source will continuously retry events if the Lambda call fails. For this reason we want to clear
-;; the event from the queue before making other, possibly error-prone, API calls. A big potential source of errors is
-;; building the configuration because it involves user inputs. So we want to defer the construction of the mirror-conf
-;; until after handle-sqs-event has had a chance to delete the event.
-;;
-
 (def get-mirror-conf (memoize (fn [] (conform-or-throw ::ss/mirror-conf "Invalid mirror configuration"
                                                        (-> (get-conf)
                                                            (assoc-in [:source :private-key-path] (get-private-key))
@@ -134,13 +127,11 @@
   "Process a single SQS event, removing it from the queue afterward."
   [event]
   (let [{:keys [body eventSourceARN receiptHandle]} event]
-    ;; The event source mapping will keep retrying failed events forever, so we delete the message from the queue
-    ;; BEFORE processing it to avoid thrashing.
+    (perform-op body)
     (aws-invoke-throw :sqs {:op      :DeleteMessage
                             :request {:QueueUrl      (get-queue-url eventSourceARN)
                                       :ReceiptHandle receiptHandle}}
-                      "Error deleting event" {:event event})
-    (perform-op body)))
+                      "Error deleting event" {:event event})))
 
 (defn handle-message
   "Handle the various forms that a message may come in."
