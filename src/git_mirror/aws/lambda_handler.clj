@@ -84,6 +84,14 @@
                                  "Failed to queue repo for mirroring" {}))
          doall)))
 
+(defn op-list-repos
+  "Fetch the list of repositories to mirror and dump it to the log"
+  [mirror-conf]
+  (->> (get-source-repos mirror-conf)
+       (map :url)
+       (str/join "\n")
+       (log/infof "Repositories to mirror:\n%s")))
+
 (defn op-mirror
   "Mirror a single repository"
   [mirror-conf op-map]
@@ -99,6 +107,7 @@
     (log/infof "Message:\n%s" (prn-str op-map))
     (case op
       "ping" (log/infof "Conf:\n%s" (prn-str mirror-conf))
+      "list-repos" (op-list-repos mirror-conf)
       "queue-for-mirror" (op-queue-for-mirror (get-sqs-client) mirror-conf op-map)
       "mirror" (op-mirror mirror-conf op-map)
       (throw (ex-info "unrecognized request" {:op-map op-map})))))
@@ -138,24 +147,25 @@
                                           (assoc :local-cache-path (get-cache-path))))]
     (handle-message mirror-conf input)))
 
-#_(let [ssm-client (aws/client {:api :ssm})
+(let [ssm-client (aws/client {:api :ssm})
       sqs-client (aws/client {:api :sqs})
       private-key (get-private-key ssm-client)
-      conf {:source           {:type             :gitolite
-                               :remote-host      "banner-src.ellucian.com"
-                               :private-key-path private-key}
-            :dest             {:type            :code-commit
-                               :ssm-creds-param "delete-me-git-mirror-creds"}
-            :local-cache-path "tmp"
-            :whitelist        [#_{:path-regex "^/banner"}
-                               {:path-regex "banner_student_admissions"}]
-            :blacklist        [{:path-regex "^/banner/plugins/banner_common_api"}]}
+      mirror-conf {:source           {:type             :gitolite
+                                      :remote-host      "banner-src.ellucian.com"
+                                      :private-key-path private-key}
+                   :dest             {:type            :code-commit
+                                      :ssm-creds-param "delete-me-git-mirror-creds"}
+                   :local-cache-path "tmp"
+                   :whitelist        [{:path-regex "^/banner"}
+                                      #_{:path-regex "banner_student_admissions"}]
+                   :blacklist        [{:path-regex "^/banner/tcc/"}]}
       queue-arn "arn:aws:sqs:us-east-1:803071473383:gm-git-mirror-SqsQueue-1QP2ALYFXFMQ0"
       mirror-op {:op         "mirror"
                  :remote-url "ssh://git@banner-src.ellucian.com/banner/plugins/banner_student_admissions"}
-      ping-op {:op "ping"}]
+      ping-op {:op "ping"}
+      list-op {:op "list-repos"}]
 
-  (-handler ping-op))
+  (-handler list-op))
 
 
 
