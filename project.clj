@@ -9,7 +9,7 @@
                  [expound "0.8.4"]                          ; Improved spec messages
                  [lambdaisland/uri "1.4.54"]                ; URL parsing
                  [clj-jgit "1.0.0"]                         ; Pure Java Git client
-                 [com.rpl/specter "1.1.3"]                  ; Advanced data manipulation
+                 ;[com.rpl/specter "1.1.3"]                  ; Advanced data manipulation
                  [cheshire "5.10.0"]                        ; JSON parsing
 
                  ;; Pure Java SSH client

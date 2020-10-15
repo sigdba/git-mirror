@@ -4,6 +4,6 @@ parameters:
   VpcId: vpc-73ac1215
   SubnetId: subnet-85dee6ba
   JarBucket: sig-lambda-stage
-  JarPath: git-mirror/git-mirror-15-pkg.jar
+  JarPath: git-mirror/git-mirror-16-pkg.jar
   PrivateKeyParam: delete-me-ellucian-git-private-key
   MirrorConfParam: delete-me-git-mirror-conf

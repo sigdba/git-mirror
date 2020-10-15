@@ -42,7 +42,7 @@ Resources:
       Handler: git_mirror.aws.lambda_handler::handler
       Role: !GetAtt LambdaExecutionRole.Arn
       Runtime: java8
-      MemorySize: 512
+      MemorySize: 1024
       Timeout: 900
       VpcConfig:
         SecurityGroupIds:
@@ -56,6 +56,7 @@ Resources:
         Variables:
           GITMIRROR_SOURCE_PRIVKEY_SSM_PARAM: !Ref PrivateKeyParam
           GITMIRROR_CONF_SSM_PARAM: !Ref MirrorConfParam
+          XDG_CONFIG_HOME: /mnt/cache/git_mirror_cache/.xdg_config
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -86,6 +87,11 @@ Resources:
                   - elasticfilesystem:ClientMount
                   - elasticfilesystem:ClientWrite
                 Resource: !GetAtt EfsFileSystem.Arn
+              - Effect: Allow
+                Action:
+                  - codecommit:GetRepository
+                  - codecommit:CreateRepository
+                Resource: "*"
               - Effect: Allow
                 Action:
                   - sqs:*
@@ -131,6 +137,15 @@ Resources:
     Type: AWS::EFS::AccessPoint
     Properties:
       FileSystemId: !Ref EfsFileSystem
+      PosixUser:
+        Gid: 1000
+        Uid: 1000
+      RootDirectory:
+        Path: /git_mirror
+        CreationInfo:
+          OwnerGid: 1000
+          OwnerUid: 1000
+          Permissions: 777
 
   EfsMountTarget:
     Type: AWS::EFS::MountTarget
