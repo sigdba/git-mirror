@@ -55,6 +55,11 @@ Parameters:
     Description: (Optional) ARN of an SNS topic to receive error alarms
     Default: ""
 
+  LogRetentionDays:
+    Type: Number
+    Description: Number of days to keep Lambda invocation logs
+    Default: 7
+
 Conditions:
   CreateErrorAlarm: !Not [!Equals [!Ref AlarmTopicArn, ""]]
 
@@ -247,4 +252,4 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${LambdaFunction}"
-      RetentionInDays: 7
+      RetentionInDays: !Ref LogRetentionDays
