@@ -23,7 +23,7 @@ Parameters:
 
   MirrorConfParam:
     Type: String
-    Description: Name of the SSM parameter containing the git-mirror configuration in EDN
+    Description: Name of the SSM parameter containing the git-mirror configuration in edn
 
   CodeCommitCredsParam:
     Type: String
@@ -109,7 +109,9 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - logs:*
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
                 Resource: arn:aws:logs:*:*:*
               - Effect: Allow
                 Action:
@@ -121,7 +123,7 @@ Resources:
                   - codecommit:GetRepository
                   - codecommit:CreateRepository
                   - codecommit:TagResource
-                Resource: "*"
+                Resource: "*"  # TODO: We might want to add a prefix to limit what it can touch.
               - Effect: Allow
                 Action:
                   - sqs:*
