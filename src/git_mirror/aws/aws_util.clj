@@ -14,7 +14,7 @@
   "Invokes the given AWS request and returns the response or throws an exception if it failed."
   [api op-map msg info-map]
   (let [client (if (keyword? api) (get-aws-client api) api)]
-    (log/debugf "Invoking AWS API:\n%s" (prn-str op-map))
+    (log/debugf "Invoking AWS %s: %s" api (prn-str op-map))
     (let [resp (aws/invoke client op-map)]
       (if (:cognitect.anomalies/category resp)
         (throw-aws-err msg info-map resp)
