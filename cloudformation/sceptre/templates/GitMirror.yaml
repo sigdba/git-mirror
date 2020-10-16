@@ -52,7 +52,7 @@ Parameters:
 
   AlarmTopicArn:
     Type: String
-    Description: ARN of an SNS topic to receive error alarms
+    Description: (Optional) ARN of an SNS topic to receive error alarms
     Default: ""
 
 Conditions:
