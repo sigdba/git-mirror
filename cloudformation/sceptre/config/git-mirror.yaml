@@ -8,3 +8,4 @@ parameters:
   PrivateKeyParam: delete-me-ellucian-git-private-key
   MirrorConfParam: delete-me-git-mirror-conf
   CodeCommitCredsParam: delete-me-git-mirror-creds
+  AlarmTopicArn: arn:aws:sns:us-east-1:803071473383:NotifyMe

@@ -50,6 +50,14 @@ Parameters:
     Description: Path within EFS volume which will be the base of all GitMirror files.
     Default: /git_mirror
 
+  AlarmTopicArn:
+    Type: String
+    Description: ARN of an SNS topic to receive error alarms
+    Default: ""
+
+Conditions:
+  CreateErrorAlarm: !Not [!Equals [!Ref AlarmTopicArn, ""]]
+
 Resources:
   LambdaFunction:
     Type: AWS::Lambda::Function
@@ -210,3 +218,24 @@ Resources:
               "op": "queue-for-mirror",
               "queue-arn": "${SqsQueue.Arn}"
             }
+
+  ErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: CreateErrorAlarm
+    Properties:
+      AlarmDescription: Errors have occurred in the git-mirror process
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      ComparisonOperator: GreaterThanThreshold
+      Threshold: 0
+      Unit: Count
+      Statistic: Maximum
+      DatapointsToAlarm: 1
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref LambdaFunction
+      Period: 60
+      EvaluationPeriods: 1
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlarmTopicArn
