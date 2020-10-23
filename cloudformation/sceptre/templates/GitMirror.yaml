@@ -227,6 +227,13 @@ Resources:
               "queue-arn": "${SqsQueue.Arn}"
             }
 
+  EbLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt LambdaFunction.Arn
+      Principal: events.amazonaws.com
+
   ErrorAlarm:
     Type: AWS::CloudWatch::Alarm
     Condition: CreateErrorAlarm
