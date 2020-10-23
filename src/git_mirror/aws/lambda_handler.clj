@@ -55,6 +55,11 @@
   []
   (require-env-var "GITMIRROR_CACHE_DIR"))
 
+(defn- get-ssm-creds-param
+  "Reads the :dest -> :ssm-creds-param from an environment variable"
+  []
+  (require-env-var "GITMIRROR_DEST_SSM_CREDS_PARAM"))
+
 (defn- -get-queue-url
   "Retrieve the URL for the given queue"
   [arn]
@@ -101,7 +106,8 @@
 (def get-mirror-conf (memoize (fn [] (conform-or-throw ::ss/mirror-conf "Invalid mirror configuration"
                                                        (-> (get-conf)
                                                            (assoc-in [:source :private-key-path] (get-private-key))
-                                                           (assoc :local-cache-path (get-cache-path)))))))
+                                                           (assoc :local-cache-path (get-cache-path))
+                                                           (assoc-in [:dest :ssm-creds-param] (get-ssm-creds-param)))))))
 
 ;; Reflective version of get-op-fn
 #_(defn- get-op-fn

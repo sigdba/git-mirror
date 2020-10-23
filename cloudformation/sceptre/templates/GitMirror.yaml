@@ -89,6 +89,7 @@ Resources:
         Variables:
           GITMIRROR_SOURCE_PRIVKEY_SSM_PARAM: !Ref PrivateKeyParam
           GITMIRROR_CONF_SSM_PARAM: !Ref MirrorConfParam
+          GITMIRROR_DEST_SSM_CREDS_PARAM: !Ref CodeCommitCredsParam
           GITMIRROR_CACHE_DIR: !Sub "${EfsMountPoint}/cache"
           XDG_CONFIG_HOME: !Sub "${EfsMountPoint}/.xdg_config"
 
