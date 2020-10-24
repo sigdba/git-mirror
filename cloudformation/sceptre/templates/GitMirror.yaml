@@ -225,7 +225,8 @@ Resources:
           Input: !Sub |
             {
               "op": "queue-for-mirror",
-              "queue-arn": "${SqsQueue.Arn}"
+              "queue-arn": "${SqsQueue.Arn}",
+              "origin": "scheduled-event"
             }
 
   EbLambdaPermission:
